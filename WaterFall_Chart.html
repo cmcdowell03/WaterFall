@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <title>
+   Interactive Project Chart
+  </title>
+  <!-- Include Google Charts Library -->
+  <script src="https://www.gstatic.com/charts/loader.js" type="text/javascript">
+  </script>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+ </head>
+ <body>
+  <div>
+   <label for="start-date">
+    Start Date:
+   </label>
+   <input id="start-date" type="date" value="2023-01-01"/>
+   <label for="end-date">
+    End Date:
+   </label>
+   <input id="end-date" type="date" value="2023-12-31"/>
+  </div>
+  <div>
+   <label for="timeframe-select">
+    Select Time Frame:
+   </label>
+   <select id="timeframe-select">
+    <option value="daily">
+     Daily
+    </option>
+    <option value="workweek">
+     By Work Week
+    </option>
+    <option value="quarterly">
+     Quarterly
+    </option>
+   </select>
+  </div>
+  <div>
+    <label for="json-file">
+      Select JSON File:
+    </label>
+    <input id="json-file" type="file" accept=".json"/>
+  </div>
+    <div>
+        <input type="checkbox" id="targetEndCheckbox" checked> Cumulative Target End
+        <input type="checkbox" id="resolutionCheckbox" checked> Cumulative Resolution
+        <input type="checkbox" id="gapToTargetCheckbox" checked> Gap to Target
+        <input type="checkbox" id="unresolvedIssuesCheckbox" checked> Unresolved Issues
+    </div>
+    <div>
+        <label for="start-date-slider">Start Date:</label>
+        <input type="range" id="start-date-slider" name="start-date-slider" min="0" max="365">
+        <span id="start-date-value">2023-01-01</span>
+    </div>
+    <div>
+        <label for="end-date-slider">End Date:</label>
+        <input type="range" id="end-date-slider" name="end-date-slider" min="0" max="365">
+        <span id="end-date-value">2023-12-31</span>
+    </div>
+  <div id="chart_div" style="width: 100%; height: 500px;">
+  </div>
+  <div id="d3_chart_div" style="width: 100%; height: 500px;"></div>
+
+
+<script type="text/javascript">
+google.charts.load('current', {'packages':['corechart']});
+console.log('Loading Google Charts library...');
+
+async function drawChart() {
+    // ...function code...
+}
+
+async function drawD3Chart(startDate, endDate, timeframe, jsonData) {
+    // ...function code...
+}
+google.charts.setOnLoadCallback(() => {
+    drawChart();
+    drawD3Chart();
+});
+
+async function fetchData(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => {
+            try {
+                const jsonData = JSON.parse(event.target.result);
+                resolve(jsonData);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = error => reject(error);
+        reader.readAsText(file);
+    });
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    // Return a string that combines the year and the week number for better labeling
+    return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
+}
+
+
+// Updated transformData function to handle null resolution dates
+function transformData(jsonData, startDate, endDate, timeframe) {
+    const dataMap = new Map();
+
+    // Determine the grouping function based on the timeframe
+    const groupByFunction = {
+        daily: date => date.toISOString().split('T')[0],
+        workweek: getWeekNumber,
+        quarterly: date => `${date.getUTCFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}`
+    }[timeframe];
+
+    // Process and group the issues
+    jsonData.forEach(issue => {
+        const targetEnd = new Date(issue.fields.targetEnd);
+        const resolution = issue.fields.resolution ? new Date(issue.fields.resolution) : null;
+
+        if (targetEnd < startDate || targetEnd > endDate || (resolution && (resolution < startDate || resolution > endDate))) {
+            
+        }
+
+        const targetEndGroup = groupByFunction(targetEnd);
+        const resolutionGroup = resolution ? groupByFunction(resolution) : null;
+
+        // Initialize the group entries if not present
+        if (!dataMap.has(targetEndGroup)) {
+            dataMap.set(targetEndGroup, { targetEnd: 0, resolution: 0 });
+        }
+        if (resolutionGroup && !dataMap.has(resolutionGroup)) {
+            dataMap.set(resolutionGroup, { targetEnd: 0, resolution: 0 });
+        }
+
+        // Accumulate the counts
+        dataMap.get(targetEndGroup).targetEnd += 1;
+        if (resolutionGroup) {
+            dataMap.get(resolutionGroup).resolution += 1;
+        }
+    });
+
+    // Sort the groups and prepare the data array
+    const sortedGroups = Array.from(dataMap.keys()).sort();
+    const dataArray = [['Group', 'Cumulative Target End - Bars', 'Cumulative Target End - Line', 'Cumulative Resolution - Bars', 'Cumulative Resolution - Line', 'Gap to Target', 'Unresolved Issues']];    let cumulativeTargetEnd = 0;
+    let cumulativeResolution = 0;
+
+    // Calculate the total number of issues within the selected date range at the start
+    let totalIssues = 0;
+    jsonData.forEach(issue => {
+        const targetEnd = new Date(issue.fields.targetEnd);
+        if (targetEnd >= startDate && targetEnd <= endDate) {
+            totalIssues += 1;
+        }
+    });
+
+    // Accumulate and push the data for the chart
+    sortedGroups.forEach(group => {
+        const groupData = dataMap.get(group);
+        cumulativeTargetEnd += groupData.targetEnd;
+        cumulativeResolution += groupData.resolution || 0;
+
+        // Calculate the difference between the Cumulative Target End and the Cumulative Resolution
+        const gapToTarget = cumulativeTargetEnd - cumulativeResolution;
+
+        // Calculate the total unresolved issues as a burndown from the total sum
+        const unresolvedIssues = totalIssues - cumulativeResolution;
+
+        dataArray.push([group, cumulativeTargetEnd, cumulativeTargetEnd, cumulativeResolution, cumulativeResolution, gapToTarget, unresolvedIssues]);
+    });
+
+    return dataArray;
+}
+
+
+// Updated drawChart function
+async function drawChart() {
+    const startDate = new Date(document.getElementById('start-date').value);
+    const endDate = new Date(document.getElementById('end-date').value);
+    const timeframe = document.getElementById('timeframe-select').value;
+    const jsonFile = document.getElementById('json-file').files[0];
+
+    if (!jsonFile) {
+        console.error('No JSON file selected.');
+        
+    }
+
+    let jsonData;
+    try {
+        // Fetch jsonData only if it's not passed as a parameter
+        jsonData = await fetchData(jsonFile);
+    } catch (error) {
+        console.error('Error processing JSON file:', error);
+        
+    }
+
+    const transformedData = transformData(jsonData, startDate, endDate, timeframe);
+
+        var data = google.visualization.arrayToDataTable(transformedData);
+
+        var options = {
+            title: "Project Task Completion",
+            hAxis: { title: "Timeframe", titleTextStyle: { color: "#333" } },vAxis: { title: "Task Count", minValue: 0 },
+            vAxis: { minValue: 0 },
+            seriesType: 'bars',
+            series: {
+                0: { type: 'bars', color: 'blue', visibleInLegend: document.getElementById('targetEndCheckbox').checked },
+                1: { type: 'line', color: 'blue', visibleInLegend: document.getElementById('targetEndCheckbox').checked },
+                2: { type: 'bars', color: 'green', visibleInLegend: document.getElementById('resolutionCheckbox').checked },
+                3: { type: 'line', color: 'green', visibleInLegend: document.getElementById('resolutionCheckbox').checked },
+                4: { type: 'line', color: 'red', visibleInLegend: document.getElementById('gapToTargetCheckbox').checked },
+                5: { type: 'line', color: 'yellow', visibleInLegend: document.getElementById('unresolvedIssuesCheckbox').checked }
+            },
+            bar: { groupWidth: '75%' }
+        };
+
+        var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+    try {
+    } catch (error) {
+        console.error('Error processing JSON file:', error);
+    }
+    // Draw the D3 chart with the same data
+    drawD3Chart(startDate, endDate, timeframe, jsonData);
+}
+
+async function drawD3Chart(startDate, endDate, timeframe, jsonData) {
+    if (!jsonData) {
+        console.error('No data provided to draw the D3 chart.');
+        
+    }
+
+    try {
+        // Transform the data for the D3 chart
+        const transformedData = transformData(jsonData, startDate, endDate, timeframe);
+
+        // Check for Data Validity
+        const d3Data = transformedData.slice(1).map(d => ({
+            group: d[0],
+            value: d[1] // Assuming the value to be plotted is in the second column
+        }));
+
+        if (!d3Data.length) {
+            console.error('No valid data available for D3 chart');
+            
+        }
+
+        // Clear existing content in the D3 chart div
+        d3.select("#d3_chart_div").selectAll("*").remove();
+
+        // Define dimensions for the D3 chart
+        const margin = {top: 20, right: 20, bottom: 30, left: 40},
+              width = 960 - margin.left - margin.right,
+              height = 500 - margin.top - margin.bottom;
+
+        // Create the SVG for the D3 chart
+        const svg = d3.select("#d3_chart_div")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        // Define the scales for the chart
+        const xScale = d3.scaleBand()
+            .range([0, width])
+            .padding(0.1)
+            .domain(d3Data.map(d => d.group));
+
+        const yScale = d3.scaleLinear()
+            .range([height, 0])
+            .domain([0, d3.max(d3Data, d => d.value)]);
+
+        // Define the axes for the chart
+        const xAxis = d3.axisBottom(xScale);
+        const yAxis = d3.axisLeft(yScale);
+
+        // Add the axes to the SVG
+        svg.append("g").attr("class", "y-axis").style("font", "12px sans-serif").style("color", "#333").style("font", "12px sans-serif").style("color", "#333")
+            .attr("transform", `translate(0, ${height})`)
+            .call(xAxis);
+
+        svg.append("g").attr("class", "y-axis").style("font", "12px sans-serif").style("color", "#333").style("font", "12px sans-serif").style("color", "#333")
+            .call(yAxis);
+
+        // Draw the bars
+        svg.append("text").attr("x", (width / 2)).attr("y", 0 - (margin.top / 2)).attr("text-anchor", "middle").style("font-size", "16px").text("Project Task Completion");
+        svg.append("text").attr("transform", `translate(${(width / 2)}, ${height + margin.top + 20})`).style("text-anchor", "middle").text("Timeframe");
+        svg.append("text").attr("transform", "rotate(-90)").attr("y", 0 - margin.left).attr("x",0 - (height / 2)).attr("dy", "1em").style("text-anchor", "middle").text("Task Count");
+        svg.selectAll(".bar")
+            .data(d3Data)
+            .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("x", d => xScale(d.group))
+            .attr("width", xScale.bandwidth())
+            .attr("y", d => yScale(d.value))
+            .attr("height", d => height - yScale(d.value))
+            .attr("fill", "steelblue") .attr("stroke", "white").attr("stroke-width", "0.5");
+            // Removed the .catch method from the D3 chain
+    } catch (error) {
+        console.error('Error in rendering D3 Chart:', error);
+    }
+}
+    // Ensure DOM is Fully Loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        
+async function checkPermissionsAndFetchData(jqlQuery, jiraBaseUrl, confluenceBaseUrl, username, apiToken) {
+    // Encoding username and API token for Basic Authentication
+    // This is a standard method for encoding credentials for Basic Auth
+    const base64Credentials = btoa(username + ":" + apiToken);
+
+    // Constructing the URI for checking permissions in Jira
+    // Replace 'BROWSE' with the specific permission key you need to check
+    const permissionUri = `${jiraBaseUrl}/rest/api/2/mypermissions?permissions=BROWSE`;
+
+    try {
+        // Making a fetch request to check permissions
+        // Include the Authorization header with Basic Auth credentials
+        const permissionResponse = await fetch(permissionUri, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${base64Credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Check if the response is not okay and throw an error
+        if (!permissionResponse.ok) {
+            throw new Error(`Permission check failed: ${permissionResponse.status}`);
+        }
+
+        // Parsing the JSON response to get permission data
+        const permissionData = await permissionResponse.json();
+        
+        // Check if the user does not have the required permission
+        // Throw an error if the necessary permission is missing
+        if (!permissionData.permissions.BROWSE.havePermission) {
+            throw new Error('Insufficient permissions to fetch data');
+        }
+
+        // Constructing the URI to fetch data from Jira using JQL
+        // The JQL query is encoded to ensure it's safe to pass in a URL
+        const dataUri = `${jiraBaseUrl}/rest/api/2/search?jql=${encodeURIComponent(jqlQuery)}`;
+
+        // Making a fetch request to Jira to get data based on the JQL query
+        // Again, using Basic Authentication in the request header
+        const dataResponse = await fetch(dataUri, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${base64Credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Check if the response from the data fetch is not okay
+        // Throw an error if the fetch request failed
+        if (!dataResponse.ok) {
+            throw new Error(`Data fetch failed: ${dataResponse.status}`);
+        }
+
+        // Return the JSON response containing the Jira data
+        return await dataResponse.json();
+    } catch (error) {
+        // Log any errors that occur during the fetch process
+        console.error('Error:', error);
+    }
+}
+
+// Note: When using this function in a Confluence page, ensure that:
+// 1. The Jira instance allows CORS requests from the Confluence domain.
+// 2. The credentials are securely managed, preferably on the server side.
+// 3. The user has the necessary permissions in Jira to access the required data.
+        
+google.charts.setOnLoadCallback(() => {
+            drawChart();
+            drawD3Chart();
+        });
+    });
+// Ensure to attach these functions to the existing event listeners in your HTML file
+
+// Add an event listener for the file input to load and draw the chart
+document.getElementById('json-file').addEventListener('change', async function() {
+    const jsonFile = document.getElementById('json-file').files[0];
+    if (jsonFile) {
+        const jsonData = await fetchData(jsonFile);
+        drawChart();
+    }
+});
+// Update other event listeners to not pass jsonData
+document.getElementById('timeframe-select').addEventListener('change', drawChart);
+document.getElementById('start-date').addEventListener('change', drawChart);
+document.getElementById('end-date').addEventListener('change', drawChart);
+document.getElementById('targetEndCheckbox').addEventListener('change', drawChart);
+document.getElementById('resolutionCheckbox').addEventListener('change', drawChart);
+document.getElementById('gapToTargetCheckbox').addEventListener('change', drawChart);
+document.getElementById('unresolvedIssuesCheckbox').addEventListener('change', drawChart);
+
+// Event listeners for the date sliders
+document.getElementById('start-date-slider').addEventListener('input', drawChart);
+document.getElementById('end-date-slider').addEventListener('input', drawChart);
+
+</script>
+ 
+<script>
+    // Function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        var d = new Date(date),
+            month = '' + (d.getMonth() + 1),
+            day = '' + d.getDate(),
+            year = d.getFullYear();
+
+        if (month.length < 2) month = '0' + month;
+        if (day.length < 2) day = '0' + day;
+
+        return [year, month, day].join('-');
+    }
+
+    // Update the start date value when the slider changes
+    document.getElementById('start-date-slider').addEventListener('input', function(e) {
+        var dayOffset = parseInt(e.target.value, 10);
+        var startDate = new Date(new Date().setDate(new Date().getDate() - (365 - dayOffset)));
+        document.getElementById('start-date-value').textContent = formatDate(startDate);
+        document.getElementById('start-date').value = formatDate(startDate);
+        drawChart();
+    });
+
+    // Update the end date value when the slider changes
+    document.getElementById('end-date-slider').addEventListener('input', function(e) {
+        var dayOffset = parseInt(e.target.value, 10);
+        var endDate = new Date(new Date().setDate(new Date().getDate() - (365 - dayOffset)));
+        document.getElementById('end-date-value').textContent = formatDate(endDate);
+        document.getElementById('end-date').value = formatDate(endDate);
+        drawChart();
+    });
+    
+  </script>
+ </body>
+</html>
