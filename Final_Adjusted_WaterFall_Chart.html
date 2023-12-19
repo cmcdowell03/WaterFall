@@ -1,69 +1,118 @@
+
 <!DOCTYPE html>
+
 <html>
- <head>
-  <title>
+<head>
+<title>
    Interactive Project Chart
   </title>
-  <!-- Include Google Charts Library -->
-  <script src="https://www.gstatic.com/charts/loader.js" type="text/javascript">
-  </script>
-  <script src="https://d3js.org/d3.v5.min.js"></script>
- </head>
- <body>
-  <div>
-   <label for="start-date">
+<!-- Include Google Charts Library -->
+<script src="https://www.gstatic.com/charts/loader.js" type="text/javascript">
+
+console.log('Attention: This script needs event listeners.');
+</script>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+<label for="jql-input">JIRA JQL Filter: </label><input id="jql-input" placeholder="Enter JQL Filter" type="text"/><button id="api-call-button">Fetch Data from JIRA</button><div>
+<label for="start-date">
     Start Date:
    </label>
-   <input id="start-date" type="date" value="2023-01-01"/>
-   <label for="end-date">
+<input id="start-date" type="date" value="2023-01-01"/>
+<label for="end-date">
     End Date:
    </label>
-   <input id="end-date" type="date" value="2023-12-31"/>
-  </div>
-  <div>
-   <label for="timeframe-select">
+<input id="end-date" type="date" value="2023-12-31"/>
+</div><table id="data-statistics-table"><thead><tr><th>Statistic</th><th>Value</th></tr></thead><tbody><tr><td colspan="2">Data will be displayed here.</td></tr></tbody></table>
+<div>
+<label for="timeframe-select">
     Select Time Frame:
    </label>
-   <select id="timeframe-select">
-    <option value="daily">
+<select id="timeframe-select">
+<option value="daily">
      Daily
     </option>
-    <option value="workweek">
+<option value="workweek">
      By Work Week
     </option>
-    <option value="quarterly">
+<option value="quarterly">
      Quarterly
     </option>
-   </select>
-  </div>
-  <div>
-    <label for="json-file">
+</select>
+</div>
+<!-- Added User Controls for Data Source Import -->
+<div>
+<label for="file-type-select">
+      Select File Type:
+    </label>
+<select id="file-type-select">
+<option value="json">
+        JSON
+      </option>
+<option value="csv">
+        CSV
+      </option>
+</select>
+</div>
+<div>
+<label for="json-file">
+      Select Data File:
+    </label>
+<input accept=".json,.csv" id="json-file" type="file"/>
+<button id="load-data">Load Data</button>
+</div>
+<div id="preview-area">
+<h3>Preview Fields</h3>
+<div id="fields-preview"></div>
+</div>
+<!-- Original chart containers and script tags remain unchanged -->
+<div id="chart_div" style="width: 100%; height: 500px;">
+</div>
+<div id="d3_chart_div" style="width: 100%; height: 500px;"></div>
+<!-- Original script content with additional script for new user controls -->
+<script type="text/javascript">
+    // Original script content
+    // ...
+    // Functions for handling file reading and field extraction
+    // ...
+
+    // New script for handling user controls
+    document.getElementById('load-data').addEventListener('click', async function() {
+      const fileType = document.getElementById('file-type-select').value;
+      const file = document.getElementById('json-file').files[0];
+      if (!file) {
+        alert('Please select a file.');
+        return;
+      }
+      try {
+        const fields = await readFileAndInterpretFields(file);
+        document.getElementById('fields-preview').textContent = 'Fields: ' + fields.join(', ');
+        // Proceed with drawing the chart using the selected file
+        // ...
+      } catch (error) {
+        alert('Error processing file: ' + error.message);
+      }
+    });
+  </script>
+<div>
+<label for="json-file">
       Select JSON File:
     </label>
-    <input id="json-file" type="file" accept=".json"/>
-  </div>
-    <div>
-        <input type="checkbox" id="targetEndCheckbox" checked> Cumulative Target End
-        <input type="checkbox" id="resolutionCheckbox" checked> Cumulative Resolution
-        <input type="checkbox" id="gapToTargetCheckbox" checked> Gap to Target
-        <input type="checkbox" id="unresolvedIssuesCheckbox" checked> Unresolved Issues
-    </div>
-    <div>
-        <label for="start-date-slider">Start Date:</label>
-        <input type="range" id="start-date-slider" name="start-date-slider" min="0" max="365">
-        <span id="start-date-value">2023-01-01</span>
-    </div>
-    <div>
-        <label for="end-date-slider">End Date:</label>
-        <input type="range" id="end-date-slider" name="end-date-slider" min="0" max="365">
-        <span id="end-date-value">2023-12-31</span>
-    </div>
-  <div id="chart_div" style="width: 100%; height: 500px;">
-  </div>
-  <div id="d3_chart_div" style="width: 100%; height: 500px;"></div>
-
-
-<script type="text/javascript">
+<input accept=".json" id="json-file" type="file"/>
+</div><div>
+<label for="targetEndCheckbox">Target End</label><input checked="" id="targetEndCheckbox" type="checkbox"/> Cumulative Target End
+        <label for="resolutionCheckbox">Resolution</label><input checked="" id="resolutionCheckbox" type="checkbox"/> Cumulative Resolution
+        <label for="gapToTargetCheckbox">Gaptotarget</label><input checked="" id="gapToTargetCheckbox" type="checkbox"/> Gap to Target
+        <label for="unresolvedIssuesCheckbox">Unresolvedissues</label><input checked="" id="unresolvedIssuesCheckbox" type="checkbox"/> Unresolved Issues
+    </div><div>
+<label for="start-date-slider">Start Date:</label>
+<input id="start-date-slider" max="365" min="0" name="start-date-slider" type="range"/>
+<span id="start-date-value">2023-01-01</span>
+</div><div>
+<label for="end-date-slider">End Date:</label>
+<input id="end-date-slider" max="365" min="0" name="end-date-slider" type="range"/>
+<span id="end-date-value">2023-12-31</span>
+</div><script type="text/javascript">
 google.charts.load('current', {'packages':['corechart']});
 console.log('Loading Google Charts library...');
 
@@ -72,7 +121,7 @@ google.charts.setOnLoadCallback(() => {
     drawD3Chart();
 });
 
-async function fetchData(file) {
+function fetchData(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = event => {
@@ -80,10 +129,10 @@ async function fetchData(file) {
                 const jsonData = JSON.parse(event.target.result);
                 resolve(jsonData);
             } catch (error) {
-                reject(error);
+                reject('Error parsing JSON data: ' + error.message);
             }
         };
-        reader.onerror = error => reject(error);
+        reader.onerror = error => reject('File reading error: ' + error.message);
         reader.readAsText(file);
     });
 }
@@ -101,27 +150,28 @@ function getWeekNumber(d) {
 // Updated transformData function to handle null resolution dates
 function transformData(jsonData, startDate, endDate, timeframe) {
     const dataMap = new Map();
+    let totalIssues = 0, resolvedIssues = 0;
 
-    // Determine the grouping function based on the timeframe
     const groupByFunction = {
         daily: date => date.toISOString().split('T')[0],
         workweek: getWeekNumber,
-        quarterly: date => `${date.getUTCFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}`
+        quarterly: date => date.getUTCFullYear() + '-Q' + (Math.floor(date.getMonth() / 3) + 1)
     }[timeframe];
 
-    // Process and group the issues
     jsonData.forEach(issue => {
         const targetEnd = new Date(issue.fields.targetEnd);
         const resolution = issue.fields.resolution ? new Date(issue.fields.resolution) : null;
 
-        if (targetEnd < startDate || targetEnd > endDate || (resolution && (resolution < startDate || resolution > endDate))) {
-            
+        if (targetEnd >= startDate && targetEnd <= endDate) {
+            totalIssues++;
+            if (resolution && resolution <= endDate) {
+                resolvedIssues++;
+            }
         }
 
         const targetEndGroup = groupByFunction(targetEnd);
         const resolutionGroup = resolution ? groupByFunction(resolution) : null;
 
-        // Initialize the group entries if not present
         if (!dataMap.has(targetEndGroup)) {
             dataMap.set(targetEndGroup, { targetEnd: 0, resolution: 0 });
         }
@@ -129,43 +179,34 @@ function transformData(jsonData, startDate, endDate, timeframe) {
             dataMap.set(resolutionGroup, { targetEnd: 0, resolution: 0 });
         }
 
-        // Accumulate the counts
         dataMap.get(targetEndGroup).targetEnd += 1;
         if (resolutionGroup) {
             dataMap.get(resolutionGroup).resolution += 1;
         }
     });
 
-    // Sort the groups and prepare the data array
     const sortedGroups = Array.from(dataMap.keys()).sort();
-    const dataArray = [['Group', 'Cumulative Target End - Bars', 'Cumulative Target End - Line', 'Cumulative Resolution - Bars', 'Cumulative Resolution - Line', 'Gap to Target', 'Unresolved Issues']];    let cumulativeTargetEnd = 0;
+    const dataArray = [['Group', 'Cumulative Target End - Bars', 'Cumulative Resolution - Bars', 'Gap to Target', 'Unresolved Issues']];    
+    let cumulativeTargetEnd = 0;
     let cumulativeResolution = 0;
 
-    // Calculate the total number of issues within the selected date range at the start
-    let totalIssues = 0;
-    jsonData.forEach(issue => {
-        const targetEnd = new Date(issue.fields.targetEnd);
-        if (targetEnd >= startDate && targetEnd <= endDate) {
-            totalIssues += 1;
-        }
-    });
-
-    // Accumulate and push the data for the chart
     sortedGroups.forEach(group => {
         const groupData = dataMap.get(group);
         cumulativeTargetEnd += groupData.targetEnd;
         cumulativeResolution += groupData.resolution || 0;
-
-        // Calculate the difference between the Cumulative Target End and the Cumulative Resolution
         const gapToTarget = cumulativeTargetEnd - cumulativeResolution;
-
-        // Calculate the total unresolved issues as a burndown from the total sum
         const unresolvedIssues = totalIssues - cumulativeResolution;
-
-        dataArray.push([group, cumulativeTargetEnd, cumulativeTargetEnd, cumulativeResolution, cumulativeResolution, gapToTarget, unresolvedIssues]);
+        dataArray.push([group, cumulativeTargetEnd, cumulativeResolution, gapToTarget, unresolvedIssues]);
     });
 
-    return dataArray;
+    return {
+        chartData: dataArray,
+        statistics: {
+            totalIssues: totalIssues,
+            resolvedIssues: resolvedIssues,
+            unresolvedIssues: totalIssues - resolvedIssues
+        }
+    };
 }
 
 
@@ -178,21 +219,28 @@ async function drawChart() {
 
     if (!jsonFile) {
         console.error('No JSON file selected.');
-        
+        return;  // Add this return statement
     }
 
     let jsonData;
     try {
-        // Fetch jsonData only if it's not passed as a parameter
         jsonData = await fetchData(jsonFile);
     } catch (error) {
         console.error('Error processing JSON file:', error);
-        
+        return;
     }
 
     const transformedData = transformData(jsonData, startDate, endDate, timeframe);
 
-        var data = google.visualization.arrayToDataTable(transformedData);
+    // Ensure transformedData.chartData is an array of arrays
+    if (!Array.isArray(transformedData.chartData) || !transformedData.chartData.every(Array.isArray)) {
+        console.error('Invalid data format for arrayToDataTable:', transformedData.chartData);
+        return;
+    }
+
+    var data = google.visualization.arrayToDataTable(transformedData.chartData);
+    const { chartData, statistics } = transformData(jsonData, startDate, endDate, timeframe);
+    var data = google.visualization.arrayToDataTable(chartData);
 
         var options = {
             title: "Project Task Completion",
@@ -218,38 +266,33 @@ async function drawChart() {
     }
     // Draw the D3 chart with the same data
     drawD3Chart(startDate, endDate, timeframe, jsonData);
+    updateStatisticsTable(statistics);
 }
 
 async function drawD3Chart(startDate, endDate, timeframe, jsonData) {
     if (!jsonData) {
         console.error('No data provided to draw the D3 chart.');
-        
+        return;
     }
 
     try {
-        // Transform the data for the D3 chart
         const transformedData = transformData(jsonData, startDate, endDate, timeframe);
-
-        // Check for Data Validity
-        const d3Data = transformedData.slice(1).map(d => ({
+        const d3Data = transformedData.chartData.slice(1).map(d => ({
             group: d[0],
-            value: d[1] // Assuming the value to be plotted is in the second column
+            value: d[1]
         }));
 
         if (!d3Data.length) {
             console.error('No valid data available for D3 chart');
-            
+            return;
         }
 
-        // Clear existing content in the D3 chart div
         d3.select("#d3_chart_div").selectAll("*").remove();
 
-        // Define dimensions for the D3 chart
         const margin = {top: 20, right: 20, bottom: 30, left: 40},
               width = 960 - margin.left - margin.right,
               height = 500 - margin.top - margin.bottom;
 
-        // Create the SVG for the D3 chart
         const svg = d3.select("#d3_chart_div")
             .append("svg")
             .attr("width", width + margin.left + margin.right)
@@ -257,7 +300,6 @@ async function drawD3Chart(startDate, endDate, timeframe, jsonData) {
             .append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-        // Define the scales for the chart
         const xScale = d3.scaleBand()
             .range([0, width])
             .padding(0.1)
@@ -267,37 +309,28 @@ async function drawD3Chart(startDate, endDate, timeframe, jsonData) {
             .range([height, 0])
             .domain([0, d3.max(d3Data, d => d.value)]);
 
-        // Define the axes for the chart
-        const xAxis = d3.axisBottom(xScale);
-        const yAxis = d3.axisLeft(yScale);
+        svg.append("g")
+        .attr("transform", `translate(0,${height})`).call(d3.axisBottom(xScale));
 
-        // Add the axes to the SVG
-        svg.append("g").attr("class", "y-axis").style("font", "12px sans-serif").style("color", "#333").style("font", "12px sans-serif").style("color", "#333")
-            .attr("transform", `translate(0, ${height})`)
-            .call(xAxis);
+        svg.append("g")
+            .call(d3.axisLeft(yScale));
 
-        svg.append("g").attr("class", "y-axis").style("font", "12px sans-serif").style("color", "#333").style("font", "12px sans-serif").style("color", "#333")
-            .call(yAxis);
-
-        // Draw the bars
-        svg.append("text").attr("x", (width / 2)).attr("y", 0 - (margin.top / 2)).attr("text-anchor", "middle").style("font-size", "16px").text("Project Task Completion");
-        svg.append("text").attr("transform", `translate(${(width / 2)}, ${height + margin.top + 20})`).style("text-anchor", "middle").text("Timeframe");
-        svg.append("text").attr("transform", "rotate(-90)").attr("y", 0 - margin.left).attr("x",0 - (height / 2)).attr("dy", "1em").style("text-anchor", "middle").text("Task Count");
         svg.selectAll(".bar")
             .data(d3Data)
-            .enter()
-            .append("rect")
+            .enter().append("rect")
             .attr("class", "bar")
             .attr("x", d => xScale(d.group))
             .attr("width", xScale.bandwidth())
             .attr("y", d => yScale(d.value))
             .attr("height", d => height - yScale(d.value))
-            .attr("fill", "steelblue") .attr("stroke", "white").attr("stroke-width", "0.5");
-            // Removed the .catch method from the D3 chain
+            .attr("fill", "steelblue");
     } catch (error) {
         console.error('Error in rendering D3 Chart:', error);
     }
+    // Update the statistics table with actual data
+    updateStatisticsTable(transformedData.statistics);
 }
+
     // Ensure DOM is Fully Loaded
     document.addEventListener('DOMContentLoaded', function() {
         
@@ -349,11 +382,23 @@ async function checkPermissionsAndFetchData(jqlQuery, jiraBaseUrl, confluenceBas
             }
         });
 
-        // Check if the response from the data fetch is not okay
-        // Throw an error if the fetch request failed
+        // Check if the response is not okay and throw an error
         if (!dataResponse.ok) {
             throw new Error(`Data fetch failed: ${dataResponse.status}`);
         }
+
+        // Parsing the JSON response to get data
+        let data = await dataResponse.json();
+
+        // Check if the data is an array
+        if (!Array.isArray(data)) {
+            // If not, transform it into an array
+            // This is just an example, you might need to adjust this based on the actual structure of your data
+            data = [data];
+        }
+
+        // Now you can pass this data to your chart drawing function
+        drawChart(data);
 
         // Return the JSON response containing the Jira data
         return await dataResponse.json();
@@ -376,13 +421,20 @@ google.charts.setOnLoadCallback(() => {
 // Ensure to attach these functions to the existing event listeners in your HTML file
 
 // Add an event listener for the file input to load and draw the chart
-document.getElementById('json-file').addEventListener('change', async function() {
+document.getElementById('json-file').addEventListener('change', async function () {
     const jsonFile = document.getElementById('json-file').files[0];
     if (jsonFile) {
-        const jsonData = await fetchData(jsonFile);
-        drawChart();
+        try {
+            const jsonData = await fetchData(jsonFile);
+            drawChart(jsonData); // Pass the JSON data to the chart drawing function
+        } catch (error) {
+            console.error('Error processing JSON file:', error);
+        }
+    } else {
+        console.error('No JSON file selected.');
     }
 });
+
 // Update other event listeners to not pass jsonData
 document.getElementById('timeframe-select').addEventListener('change', drawChart);
 document.getElementById('start-date').addEventListener('change', drawChart);
@@ -396,9 +448,7 @@ document.getElementById('unresolvedIssuesCheckbox').addEventListener('change', d
 document.getElementById('start-date-slider').addEventListener('input', drawChart);
 document.getElementById('end-date-slider').addEventListener('input', drawChart);
 
-</script>
- 
-<script>
+</script><script>
     // Function to format date as YYYY-MM-DD
     function formatDate(date) {
         var d = new Date(date),
@@ -485,6 +535,38 @@ document.getElementById('end-date-slider').addEventListener('input', drawChart);
         const firstLine = csv.split("\n")[0];
         return firstLine.split(",");
     }    
-  </script>
- </body>
+  </script><script>
+// Function to update the statistics table with data
+function updateStatisticsTable(statistics) {
+    const table = document.getElementById('data-statistics-table');
+    const tbody = table.getElementsByTagName('tbody')[0];
+    tbody.innerHTML = ''; // Clear existing rows
+
+    // Iterate through the statistics object and add rows to the table
+    for (const key in statistics) {
+        if (statistics.hasOwnProperty(key)) {
+            const tr = document.createElement('tr');
+            const th = document.createElement('th');
+            th.textContent = key.replace(/([A-Z])/g, ' $1').trim(); // Add space before capital letters
+            const td = document.createElement('td');
+            td.textContent = statistics[key];
+            tr.appendChild(th);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+    }
+}
+
+
+// Example usage of the function
+// This should be replaced with actual data fetching and table updating logic
+document.addEventListener('DOMContentLoaded', function() {
+    const dummyData = {
+        'Total Issues': 100,
+        'Resolved Issues': 75,
+        'Unresolved Issues': 25
+    };
+    updateStatisticsTable(dummyData);
+});
+</script></body>
 </html>

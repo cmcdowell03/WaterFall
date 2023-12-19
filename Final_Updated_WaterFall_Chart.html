@@ -1,69 +1,116 @@
+
 <!DOCTYPE html>
+
 <html>
- <head>
-  <title>
+<head>
+<title>
    Interactive Project Chart
   </title>
-  <!-- Include Google Charts Library -->
-  <script src="https://www.gstatic.com/charts/loader.js" type="text/javascript">
-  </script>
-  <script src="https://d3js.org/d3.v5.min.js"></script>
- </head>
- <body>
-  <div>
-   <label for="start-date">
+<!-- Include Google Charts Library -->
+<script src="https://www.gstatic.com/charts/loader.js" type="text/javascript">
+</script>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+<label for="jql-input">JIRA JQL Filter: </label><input id="jql-input" placeholder="Enter JQL Filter" type="text"/><button id="api-call-button">Fetch Data from JIRA</button><div>
+<label for="start-date">
     Start Date:
    </label>
-   <input id="start-date" type="date" value="2023-01-01"/>
-   <label for="end-date">
+<input id="start-date" type="date" value="2023-01-01"/>
+<label for="end-date">
     End Date:
    </label>
-   <input id="end-date" type="date" value="2023-12-31"/>
-  </div>
-  <div>
-   <label for="timeframe-select">
+<input id="end-date" type="date" value="2023-12-31"/>
+</div><table id="data-statistics-table"><thead><tr><th>Statistic</th><th>Value</th></tr></thead><tbody></tbody></table>
+<div>
+<label for="timeframe-select">
     Select Time Frame:
    </label>
-   <select id="timeframe-select">
-    <option value="daily">
+<select id="timeframe-select">
+<option value="daily">
      Daily
     </option>
-    <option value="workweek">
+<option value="workweek">
      By Work Week
     </option>
-    <option value="quarterly">
+<option value="quarterly">
      Quarterly
     </option>
-   </select>
-  </div>
-  <div>
-    <label for="json-file">
+</select>
+</div>
+<!-- Added User Controls for Data Source Import -->
+<div>
+<label for="file-type-select">
+      Select File Type:
+    </label>
+<select id="file-type-select">
+<option value="json">
+        JSON
+      </option>
+<option value="csv">
+        CSV
+      </option>
+</select>
+</div>
+<div>
+<label for="json-file">
+      Select Data File:
+    </label>
+<input accept=".json,.csv" id="json-file" type="file"/>
+<button id="load-data">Load Data</button>
+</div>
+<div id="preview-area">
+<h3>Preview Fields</h3>
+<div id="fields-preview"></div>
+</div>
+<!-- Original chart containers and script tags remain unchanged -->
+<div id="chart_div" style="width: 100%; height: 500px;">
+</div>
+<div id="d3_chart_div" style="width: 100%; height: 500px;"></div>
+<!-- Original script content with additional script for new user controls -->
+<script type="text/javascript">
+    // Original script content
+    // ...
+    // Functions for handling file reading and field extraction
+    // ...
+
+    // New script for handling user controls
+    document.getElementById('load-data').addEventListener('click', async function() {
+      const fileType = document.getElementById('file-type-select').value;
+      const file = document.getElementById('json-file').files[0];
+      if (!file) {
+        alert('Please select a file.');
+        return;
+      }
+      try {
+        const fields = await readFileAndInterpretFields(file);
+        document.getElementById('fields-preview').textContent = 'Fields: ' + fields.join(', ');
+        // Proceed with drawing the chart using the selected file
+        // ...
+      } catch (error) {
+        alert('Error processing file: ' + error.message);
+      }
+    });
+  </script>
+<div>
+<label for="json-file">
       Select JSON File:
     </label>
-    <input id="json-file" type="file" accept=".json"/>
-  </div>
-    <div>
-        <input type="checkbox" id="targetEndCheckbox" checked> Cumulative Target End
-        <input type="checkbox" id="resolutionCheckbox" checked> Cumulative Resolution
-        <input type="checkbox" id="gapToTargetCheckbox" checked> Gap to Target
-        <input type="checkbox" id="unresolvedIssuesCheckbox" checked> Unresolved Issues
-    </div>
-    <div>
-        <label for="start-date-slider">Start Date:</label>
-        <input type="range" id="start-date-slider" name="start-date-slider" min="0" max="365">
-        <span id="start-date-value">2023-01-01</span>
-    </div>
-    <div>
-        <label for="end-date-slider">End Date:</label>
-        <input type="range" id="end-date-slider" name="end-date-slider" min="0" max="365">
-        <span id="end-date-value">2023-12-31</span>
-    </div>
-  <div id="chart_div" style="width: 100%; height: 500px;">
-  </div>
-  <div id="d3_chart_div" style="width: 100%; height: 500px;"></div>
-
-
-<script type="text/javascript">
+<input accept=".json" id="json-file" type="file"/>
+</div><div>
+<input checked="" id="targetEndCheckbox" type="checkbox"/> Cumulative Target End
+        <input checked="" id="resolutionCheckbox" type="checkbox"/> Cumulative Resolution
+        <input checked="" id="gapToTargetCheckbox" type="checkbox"/> Gap to Target
+        <input checked="" id="unresolvedIssuesCheckbox" type="checkbox"/> Unresolved Issues
+    </div><div>
+<label for="start-date-slider">Start Date:</label>
+<input id="start-date-slider" max="365" min="0" name="start-date-slider" type="range"/>
+<span id="start-date-value">2023-01-01</span>
+</div><div>
+<label for="end-date-slider">End Date:</label>
+<input id="end-date-slider" max="365" min="0" name="end-date-slider" type="range"/>
+<span id="end-date-value">2023-12-31</span>
+</div><script type="text/javascript">
 google.charts.load('current', {'packages':['corechart']});
 console.log('Loading Google Charts library...');
 
@@ -396,9 +443,7 @@ document.getElementById('unresolvedIssuesCheckbox').addEventListener('change', d
 document.getElementById('start-date-slider').addEventListener('input', drawChart);
 document.getElementById('end-date-slider').addEventListener('input', drawChart);
 
-</script>
- 
-<script>
+</script><script>
     // Function to format date as YYYY-MM-DD
     function formatDate(date) {
         var d = new Date(date),
@@ -485,6 +530,35 @@ document.getElementById('end-date-slider').addEventListener('input', drawChart);
         const firstLine = csv.split("\n")[0];
         return firstLine.split(",");
     }    
-  </script>
- </body>
+  </script><script>
+// Function to update the statistics table with data
+function updateStatisticsTable(data) {
+    const table = document.getElementById('data-statistics-table');
+    const tbody = table.getElementsByTagName('tbody')[0];
+    tbody.innerHTML = ''; // Clear existing rows
+
+    // Iterate through the data and add rows to the table
+    for (const key in data) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = key;
+        const td = document.createElement('td');
+        td.textContent = data[key];
+        tr.appendChild(th);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+}
+
+// Example usage of the function
+// This should be replaced with actual data fetching and table updating logic
+document.addEventListener('DOMContentLoaded', function() {
+    const dummyData = {
+        'Total Issues': 100,
+        'Resolved Issues': 75,
+        'Unresolved Issues': 25
+    };
+    updateStatisticsTable(dummyData);
+});
+</script></body>
 </html>
